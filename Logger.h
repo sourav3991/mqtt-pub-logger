@@ -17,9 +17,9 @@ class Logger
 	struct mosquitto *mosq;
 	void _publishToTopic();
 	void _mosquittoInit();
-	std::string _getCurrentTimestamp();
 
 	public:
+	~Logger();
 	Logger(const std::string& logFile, loglevel level, bool publish);
 
 	template<typename T>

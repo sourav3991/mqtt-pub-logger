@@ -13,7 +13,6 @@ class LoggerImpl
 	std::mutex _loggingMutex;
 	LoggerImpl();
 	void _logger(loglevel, const std::string&, const std::string&);
-	std::string _getCurrentTimestamp();
 
 	public:
 	static LoggerImpl* getInstance();

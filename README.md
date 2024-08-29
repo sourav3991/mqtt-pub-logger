@@ -1,1 +1,1 @@
-# mqtt-pub-logger
+Install mosquitto, mosquitto-dev

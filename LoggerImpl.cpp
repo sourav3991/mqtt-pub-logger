@@ -1,5 +1,6 @@
 #include "LoggerImpl.h"
 #include <string>
+#include "Utils.h"
 
 LoggerImpl::LoggerImpl()
 {
@@ -14,21 +15,6 @@ LoggerImpl* LoggerImpl::getInstance()
 	return _instance;
 }
 
-std::string LoggerImpl::_getCurrentTimestamp()
-{
-	using std::chrono::system_clock;
-	auto currentTime = std::chrono::system_clock::now();
-	char buffer[80];
-	auto transformed = currentTime.time_since_epoch().count() / 1000000;
-	auto millis = transformed % 1000;
-	std::time_t tt;
-	tt = system_clock::to_time_t ( currentTime );
-	auto timeinfo = localtime (&tt);
-	strftime (buffer,80,"%F %H:%M:%S",timeinfo);
-	sprintf(buffer, "%s:%03d",buffer,(int)millis);
-
-	return std::string(buffer);
-}
 void LoggerImpl::_logger(loglevel level, const std::string& message, const std::string& logFile)
 {
         std::string levelStr;
@@ -42,7 +28,7 @@ void LoggerImpl::_logger(loglevel level, const std::string& message, const std::
                 std::lock_guard<std::mutex> lock(_loggingMutex);
                 std::ofstream outFile;
                 outFile.open(logFile, std::ios::out | std::ios::app);
-                outFile << "[" <<_getCurrentTimestamp() << ":" << levelStr << "] "<< message << std::endl;
+                outFile << "[" <<Utils::getCurrentTimestamp() << ":" << levelStr << "] "<< message << std::endl;
                 outFile.flush();
                 outFile.close();
         }

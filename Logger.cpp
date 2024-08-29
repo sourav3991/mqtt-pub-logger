@@ -1,8 +1,17 @@
-#include "Logger.h"
 #include <mosquitto.h>
 #include <string>
 #include <string.h>
 #include <unistd.h>
+#include "Logger.h"
+#include "Utils.h"
+
+void on_disconnect(struct mosquitto *mosq, void *obj, int rc) {
+    if (rc == 0) {
+        printf("Disconnected successfully.\n");
+    } else {
+        printf("Unexpected disconnection (code %d): %s\n", rc, mosquitto_strerror(rc));
+    }
+}
 
 Logger::Logger(const std::string& logFile, loglevel level, bool publish)
 {
@@ -33,7 +42,6 @@ void Logger::_flushBuffer()
 	{
 		std::lock_guard<std::mutex> lock(_bufferMtx);
 		_publishToTopic();
-		_buffer.str("");
 	}
 	std::lock_guard<std::mutex> lock(_bufferMtx);
 	if(_level == loglevel::trace)
@@ -54,8 +62,9 @@ void Logger::_publishToTopic()
 		topic = "/logger/debug";
 	if(_level == loglevel::error)
 		topic = "/logger/debug";
-	std::string message = _getCurrentTimestamp();
-	message = message + " : " +_buffer.str();
+	std::string message = Utils::getCurrentTimestamp();
+	message += ":";
+	message = message + _buffer.str();
 	mosquitto_publish(mosq, NULL, topic.c_str(), message.length(), message.c_str(), 0, 0);
 	sleep(0.001);
 }
@@ -74,6 +83,7 @@ void Logger::_mosquittoInit()
 		printf("Error: Out of memory.\n");
 		exit(1);
 	}
+	mosquitto_disconnect_callback_set(mosq, on_disconnect);
 
 
 	if(mosquitto_connect(mosq, host, port, keepalive))
@@ -89,19 +99,22 @@ void Logger::_mosquittoInit()
 	}
 }
 
-std::string Logger::_getCurrentTimestamp()
+Logger::~Logger()
 {
-        using std::chrono::system_clock;
-        auto currentTime = std::chrono::system_clock::now();
-        char buffer[80];
-        auto transformed = currentTime.time_since_epoch().count() / 1000000;
-        auto millis = transformed % 1000;
-        std::time_t tt;
-        tt = system_clock::to_time_t ( currentTime );
-        auto timeinfo = localtime (&tt);
-        strftime (buffer,80,"%F %H:%M:%S",timeinfo);
-        sprintf(buffer, "%s:%03d",buffer,(int)millis);
+        if (mosq) {
+        // Disconnect from the broker
+        int rc = mosquitto_disconnect(mosq);
+        if (rc != MOSQ_ERR_SUCCESS) {
+            fprintf(stderr, "Error disconnecting: %s\n", mosquitto_strerror(rc));
+        }
 
-        return std::string(buffer);
+        // Clean up the Mosquitto library
+        mosquitto_destroy(mosq);
+        mosquitto_lib_cleanup();
+
+        printf("Mosquitto connection closed.\n");
+    } else {
+        printf("No active Mosquitto connection to close.\n");
+    }
+    sleep(1);
 }
-
